@@ -10,6 +10,7 @@
 */
 
 #include <nanogui/window.h>
+#include <nanogui/keyboard.h>
 #include <nanogui/theme.h>
 #include <nanovg.h>
 #include <nanogui/entypo.h>
@@ -384,6 +385,26 @@ bool Window::isClickInsideCollapseArea(const Vector2i& clkPnt)
   return clkPnt.positive() && clkPnt.lessOrEq(mCollapseIconSize.cast<int>());
 }
 
+void Window::changeCollapsed(bool newstate)
+{
+  if (mCollapsed == newstate)
+    return;
+
+  mCollapsed = newstate;
+  requestPerformLayout();
+  if (mCollapsed)
+  {
+    mSaveFixedHeight = mFixedSize.y();
+    mFixedSize.y() = getHeaderHeight();
+  }
+  else
+  {
+    mFixedSize.y() = mSaveFixedHeight;
+    mSaveFixedHeight = 0;
+  }
+  mCollapsedSize = { width(), getHeaderHeight() };
+}
+
 bool Window::mouseButtonEvent(const Vector2i &p, int button, bool down, int modifiers) 
 {
     if (Widget::mouseButtonEvent(p, button, down, modifiers))
@@ -394,19 +415,7 @@ bool Window::mouseButtonEvent(const Vector2i &p, int button, bool down, int modi
       Vector2i clkPnt = p - mPos - Vector2i(5,5);
       if (down && isClickInsideCollapseArea(clkPnt))
       {
-        mCollapsed = !mCollapsed;
-        requestPerformLayout();
-        if (mCollapsed)
-        {
-          mSaveFixedHeight = mFixedSize.y();
-          mFixedSize.y() = getHeaderHeight();
-        }
-        else
-        {
-          mFixedSize.y() = mSaveFixedHeight;
-          mSaveFixedHeight = 0;
-        }
-        mCollapsedSize = { width(), getHeaderHeight() };
+        changeCollapsed(!mCollapsed);
         return true;
       }
     }
@@ -484,6 +493,13 @@ bool Window::load(Serializer &s)
   return true;
 }
 
+bool Window::tabstop(CanTabStop mode) const
+{
+  if (mode == CanTabStop::TabStopSelf) return true;
+  if (mode == CanTabStop::TabStopChildren) return !mCollapsed;
+  return false;
+}
+
 Vector4i Window::getWidgetsArea()
 {
   Vector4i area = Widget::getWidgetsArea();
@@ -547,7 +563,7 @@ void Panel::draw(NVGcontext *ctx)
 
   if (haveDrawFlag(DrawHeader))
   {
-    bool underMouse = inFocusChain();
+    bool underMouse = inFocusChain() || mFocused;
     const Color& cltop = underMouse ? theme()->mPanelHeaderGradientTopFocus : theme()->mPanelHeaderGradientTopNormal;
     const Color& clbot = underMouse ? theme()->mPanelHeaderGradientBotFocus : theme()->mPanelHeaderGradientBotNormal;
 
@@ -602,6 +618,8 @@ void Panel::draw(NVGcontext *ctx)
 
   if (!isCollapsed())
     Widget::draw(ctx);
+  else
+    drawTabstop(ctx);
 }
 
 Vector4i Panel::getWidgetsArea()
@@ -621,6 +639,56 @@ void Panel::performLayout(NVGcontext *ctx)
 Vector2i Panel::preferredSize(NVGcontext *ctx) const 
 {
   return Window::preferredSize(ctx);
+}
+
+bool Panel::focusEvent(bool focused)
+{
+  return Window::focusEvent(focused);
+}
+
+void Panel::drawTabstop(NVGcontext* ctx)
+{
+  Widget* screen = mFocusChain.empty() ? nullptr : (Widget*)mFocusChain.back();
+  if (screen && (this == screen->getCurrentSelection()))
+  {
+    nvgSave(ctx);
+
+    nvgResetScissor(ctx);
+    nvgBeginPath(ctx);
+    nvgStrokeWidth(ctx, 2.0f);
+    nvgRect(ctx, position() - Vector2i(3), Vector2i(width(), getHeaderHeight()) + Vector2i(6));
+    nvgStrokeColor(ctx, nvgRGBA(0, 0, 255, 255));
+    nvgStroke(ctx);
+
+    nvgRestore(ctx);
+  }
+}
+
+bool Panel::keyboardEvent(int key, int scancode, int action, int mods)
+{
+  if (!focused())
+    return false;
+
+  if (isKeyboardActionPress(action) || isKeyboardActionRepeat(action))
+  {
+    if (isKeyboardKeys(key, { kbkey::space, kbkey::enter }))
+    {
+      changeCollapsed(!mCollapsed);
+      return true;
+    }
+    else if (isKeyboardKey(key, kbkey::left))
+    {
+      changeCollapsed(true);
+      return true;
+    }
+    else if (isKeyboardKey(key, kbkey::right))
+    {
+      changeCollapsed(false);
+      return true;
+    }
+  }
+
+  return Widget::keyboardEvent(key, scancode, action, mods);
 }
 
 NAMESPACE_END(nanogui)

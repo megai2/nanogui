@@ -43,16 +43,20 @@ bool CheckBox::mouseButtonEvent(const Vector2i &p, int button, bool down,
         } 
         else if (mPushed) 
         {
-            if (contains(p)) {
-                mChecked = !mChecked;
-                if (mCallback)
-                    mCallback(mChecked);
-            }
+            if (contains(p))
+              toggleCheck();           
             mPushed = false;
         }
         return true;
     }
     return false;
+}
+
+void CheckBox::toggleCheck()
+{
+  mChecked = !mChecked;
+  if (mCallback)
+    mCallback(mChecked);
 }
 
 Vector2i CheckBox::preferredSize(NVGcontext *ctx) const 
@@ -67,6 +71,24 @@ Vector2i CheckBox::preferredSize(NVGcontext *ctx) const
     return prefSize;
 }
 
+bool CheckBox::keyboardEvent(int key, int scancode, int action, int mods)
+{
+  if (!focused())
+    return false;
+
+  if (isKeyboardActionPress(action)
+      || isKeyboardActionRepeat(action))
+  {
+    if (isKeyboardKey(key, "SPCE") || isKeyboardKey(key, "ENTR"))
+    {
+      toggleCheck();
+      return true;
+    }
+  }
+
+  return Widget::keyboardEvent(key, scancode, action, mods);
+}
+
 void CheckBox::draw(NVGcontext *ctx) 
 {
     Widget::draw(ctx);
@@ -74,7 +96,9 @@ void CheckBox::draw(NVGcontext *ctx)
     nvgFontFaceSize(ctx, "sans", fontSize());
     nvgFillColor(ctx, mEnabled ? mTheme->mTextColor : mTheme->mDisabledTextColor);
     nvgTextAlign(ctx, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
-    nvgText(ctx, mPos + Vector2i( 0.6f * fontSize() + height(), height() / 2 ), mCaption);
+    nvgText(ctx, mPos + Vector2i( 0.6f * fontSize() + height() + *theme()->innerSpacingCommon, 
+                                  height() / 2 ), 
+            mCaption);
 
     const Color& pushedColor = mPushedColor.notW(mTheme->mCheckboxPushedColor);
     const Color& bgColor = mChecked

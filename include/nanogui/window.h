@@ -109,6 +109,7 @@ public:
     void save(Serializer &s) const override;
     bool load(Serializer &s) override;
     const Vector2i &size() const override;
+    bool tabstop(CanTabStop mode) const;
 
     ContextMenu& submenu(const std::string& caption, const std::string& id = "");
 
@@ -130,6 +131,7 @@ public:
 protected:
     virtual void requestPerformLayout();
     virtual bool isClickInsideCollapseArea(const Vector2i& clkPnt);
+    void changeCollapsed(bool newstate);
 
 protected:
     std::string mTitle;
@@ -192,9 +194,14 @@ public:
     bool canEdgeResize() const override { return false; }
     Vector2i preferredSize(NVGcontext *ctx) const override;
 
+    bool keyboardEvent(int key, int scancode, int action, int mods) override;
+    bool focusEvent(bool focused) override; 
+
     void setHighlightHeader(bool v) { setDrawFlag(DrawHeaderUnselect, v); }
     Vector4i getWidgetsArea() override;
 protected:
+  void drawTabstop(NVGcontext* ctx) override;
+
   void requestPerformLayout() override;
   bool isClickInsideCollapseArea(const Vector2i& clkPnt) override;
   bool inFocusChain() const;

@@ -54,6 +54,7 @@
 #include <nanogui/picflow.h>
 #include <nanogui/textarea.h>
 #include <nanogui/searchbox.h>
+#include <nanogui/editproperties.h>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -772,7 +773,7 @@ void createAllWidgetsDemo(Screen* screen)
     .header("PROGRAMMER GUIDE:")
     .bulletLine("Please see the createAllWidgetsDemo() code in example1.cpp. <- you are here!")
     .bulletLine("Please see the examples/example1.cpp.")
-    .bulletLine("Enable 'theme.nav.keyboard.enable = true' for keyboard controls.")
+    .bulletLine("Enable 'theme.keyboardNavigation= true' for keyboard controls.")
     .bulletLine("Enable 'theme.nav.gamepad.enable= true' for gamepad controls.")
     .separator("")
     .header("USER GUIDE:")
@@ -803,17 +804,17 @@ void createAllWidgetsDemo(Screen* screen)
 
   auto& iocfg = pw.panel(Caption{ "Configuration" }, WindowCollapsed{ true });
   auto& nav = iocfg.panel(Caption{ "Configuration" }, WindowCollapsed{ true }, PanelHighlightHeader{ false });
-  nav.checkbox(Caption{ "theme.nav.keyboard.enable" }, CheckboxRef{ screen->theme()->nav.keyboard.enable });
-  nav.checkbox(Caption{ "theme.nav.mouse.enable" }, CheckboxRef{ screen->theme()->nav.mouse.enable });
-  nav.checkbox(Caption{ "theme.nav.mouse.drawCursor" }, CheckboxRef{ screen->theme()->nav.mouse.drawCursor });
-  nav.checkbox(Caption{ "theme.textAreaBlinkCursor" }, CheckboxRef{ screen->theme()->textAreaBlinkCursor });
-  nav.checkbox(Caption{ "theme.windowMoveFromTitlebarOnly" }, CheckboxRef{ screen->theme()->windowMoveFromTitlebarOnly });
-  nav.checkbox(Caption{ "theme.windowEesizeFromEdge" }, CheckboxRef{ screen->theme()->windowResizeFromEdge });
-  nav.checkbox(Caption{ "theme.windowMoveInParent" }, CheckboxRef{ screen->theme()->windowMoveInParent });
-  nav.checkbox(Caption{ "theme.windowDrawBorder" }, CheckboxObservable{ screen->theme()->windowDrawBorder });
-  nav.checkbox(Caption{ "theme.frameDrawBorder" }, CheckboxRef{ screen->theme()->frameDrawBorder });
-  nav.checkbox(Caption{ "theme.debugHighlightMouseover" }, CheckboxRef{ screen->theme()->debugHighlightMouseover });
-  nav.checkbox(Caption{ "theme.keyboardNavigation" }, CheckboxRef{ screen->theme()->keyboardNavigation });
+  auto gs = [screen] { return screen->theme(); };
+  nav.checkbox(Caption{ "theme.nav.mouse.enable" }, CheckboxRef{ gs()->nav.mouse.enable });
+  nav.checkbox(Caption{ "theme.nav.mouse.drawCursor" }, CheckboxRef{ gs()->nav.mouse.drawCursor });
+  nav.checkbox(Caption{ "theme.textAreaBlinkCursor" }, CheckboxRef{ gs()->textAreaBlinkCursor });
+  nav.checkbox(Caption{ "theme.windowMoveFromTitlebarOnly" }, CheckboxRef{ gs()->windowMoveFromTitlebarOnly });
+  nav.checkbox(Caption{ "theme.windowEesizeFromEdge" }, CheckboxRef{ gs()->windowResizeFromEdge });
+  nav.checkbox(Caption{ "theme.windowMoveInParent" }, CheckboxRef{ gs()->windowMoveInParent });
+  nav.checkbox(Caption{ "theme.windowDrawBorder" }, CheckboxObservable{ gs()->windowDrawBorder });
+  nav.checkbox(Caption{ "theme.frameDrawBorder" }, CheckboxRef{ gs()->frameDrawBorder });
+  nav.checkbox(Caption{ "theme.debugHighlightMouseover" }, CheckboxRef{ gs()->debugHighlightMouseover });
+  nav.checkbox(Caption{ "theme.keyboardNavigation" }, CheckboxRef{ gs()->keyboardNavigation });
 
   auto& bfcfg = iocfg.panel(Caption{ "Backend flags" }, WindowCollapsed{ true }, PanelHighlightHeader{ false });
   auto& stcfg = iocfg.hgrid2(0.3f, Caption{ "Style" }, WindowCollapsed{ true }, PanelHighlightHeader{ false });
@@ -824,16 +825,18 @@ void createAllWidgetsDemo(Screen* screen)
       else if (item == "White") screen->setTheme<WhiteTheme>();
     }});
   auto screenPerform = SliderCallback{ [screen](float) { screen->needPerformLayout(screen); } };
-  stcfg.label("Window padding left");
-  stcfg.slider(SliderObservable{ screen->theme()->windowPaddingLeft }, SliderRange{ 0.f, 20.f }, screenPerform);
   stcfg.label("Window border size");
-  stcfg.slider(SliderObservable{ screen->theme()->windowBorderSize }, SliderRange{ 0.f, 5.f }, screenPerform);
+  stcfg.slider(SliderObservable{ gs()->windowPaddingLeft }, SliderRange{ 0.f, 20.f }, screenPerform);
+  stcfg.label("Window border size");
+  stcfg.slider(SliderObservable{ gs()->windowBorderSize }, SliderRange{ 0.f, 5.f }, screenPerform);
   stcfg.label("Window padding top");
-  stcfg.slider(SliderObservable{ screen->theme()->windowPaddingTop }, SliderRange{ 0.f, 20.f }, screenPerform);
+  stcfg.slider(SliderObservable{ gs()->windowPaddingTop }, SliderRange{ 0.f, 20.f }, screenPerform);
   stcfg.label("Frame padding left");
-  stcfg.slider(SliderObservable{ screen->theme()->framePaddingLeft }, SliderRange{ 0.f, 20.f }, screenPerform);
+  stcfg.slider(SliderObservable{ gs()->framePaddingLeft }, SliderRange{ 0.f, 20.f }, screenPerform);
   stcfg.label("Frame padding top");
-  stcfg.slider(SliderObservable{ screen->theme()->framePaddingTop }, SliderRange{ 0.f, 20.f }, screenPerform);
+  stcfg.slider(SliderObservable{ gs()->framePaddingTop }, SliderRange{ 0.f, 20.f }, screenPerform);
+  stcfg.label("Inner spacing left");
+  stcfg.slider(SliderObservable{ gs()->innerSpacingCommon }, SliderRange{ 0.f, 20.f }, screenPerform);
 
   auto& wopt = iocfg.hgrid2(0.5f, Caption{ "Window options" }, WindowCollapsed{ true });
   auto dwf = [screen, w = &dw](int f, int v = -1) { 
@@ -847,6 +850,16 @@ void createAllWidgetsDemo(Screen* screen)
                                                             [=](bool v) { dwf(Window::DrawTitle, !v); } });
   wopt.checkbox(Caption{ "No collapse icon" }, CheckboxObservable{ [=] {return !dwf(Window::DrawCollapseIcon); },
                                                            [=](bool v) { dwf(Window::DrawCollapseIcon, !v); } });
+
+}
+
+void makePropEditor(Screen* screen)
+{
+  auto& cwindow = screen->wdg<PropertiesEditor>(Caption{ "Properties" },
+                                 WidgetId{ "#prop_editor" },
+                                 Position{ screen->width() - 300, 0 },
+                                 FixedSize{ 300, screen->height() },
+                                 WindowMovable{ Theme::dgFixed });
 
 }
 
@@ -1032,6 +1045,7 @@ public:
   ExampleScreen(const Vector2i& size, const std::string& caption) : Screen(size, caption, false) {
       initGPUTimer(&gpuTimer);
 
+      makePropEditor(this);
       createButtonDemoWindow(this);
       createBasicWidgets(this);
       createMiscWidgets(this);
@@ -1072,6 +1086,16 @@ public:
           progress->setValue(value);
         if (auto progress = findWidget<CircleProgressBar>("#circleprogressbar"))
           progress->setValue( std::fmod(value * 2, 1.0f));
+
+        if (auto editor = findWidget<PropertiesEditor>("#prop_editor"))
+        {
+          if (lastSelected != mSelectedWidget 
+              && !editor->isMyChildRecursive(mSelectedWidget))
+          {
+            lastSelected = mSelectedWidget;
+            editor->parse(mSelectedWidget);
+          }
+        }
 
         startGPUTimer(&gpuTimer);
 
@@ -1156,6 +1180,7 @@ private:
     nanogui::PerfGraph *cpuGraph = nullptr;
     nanogui::PerfGraph *gpuGraph = nullptr;
     double previousFrameTime = 0, cpuTime = 0;
+    Widget* lastSelected = nullptr;
 };
 
 int main(int /* argc */, char ** /* argv */) 

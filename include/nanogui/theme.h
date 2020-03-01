@@ -284,6 +284,8 @@ public:
     shared_float framePaddingLeft;
     shared_float framePaddingTop;
 
+    shared_float innerSpacingCommon;
+
     bool frameDrawBorder = false;
     bool debugHighlightMouseover = false;
     bool keyboardNavigation = true;
@@ -336,10 +338,6 @@ public:
     Color mTooltipTextColor;
 
     struct {
-      struct {
-        bool enable = false;
-      } keyboard;
-
       struct {
         bool enable = true;
         bool drawCursor = true;

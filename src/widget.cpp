@@ -173,8 +173,11 @@ bool Widget::focusEvent(bool focused) {
     return false;
 }
 
-bool Widget::keyboardEvent(int, int, int, int) {
-    return false;
+bool Widget::keyboardEvent(int key, int scancode, int action, int mods) {
+  if (parent())
+    return parent()->keyboardEvent(key, scancode, action, mods);
+
+  return false;
 }
 
 bool Widget::keyboardCharacterEvent(unsigned int) {
@@ -311,6 +314,11 @@ int Widget::childIndex(Widget *widget) const {
     return (int) (it - mChildren.begin());
 }
 
+bool Widget::tabstop(CanTabStop mode) const 
+{ 
+  return mode == TabStopSelf ? false : true;
+}
+
 Window *Widget::window() 
 {
   Widget *w = this;
@@ -363,22 +371,9 @@ void Widget::draw(NVGcontext *ctx)
     nvgRestore(ctx);
   }
 
-  if (theme()->keyboardNavigation)
+  if (theme()->keyboardNavigation && tabstop(TabStopSelf))
   {
-    Widget* screen = mFocusChain.empty() ? nullptr : (Widget*)mFocusChain.back();
-    if (screen && (this == screen->getCurrentSelection()))
-    {
-      nvgSave(ctx);
-
-      nvgResetScissor(ctx);
-      nvgBeginPath(ctx);
-      nvgStrokeWidth(ctx, 2.0f);
-      nvgRect(ctx, mPos - Vector2f(3), mSize + Vector2f(6));
-      nvgStrokeColor(ctx, nvgRGBA(0, 0, 255, 255));
-      nvgStroke(ctx);
-
-      nvgRestore(ctx);
-    }
+    drawTabstop(ctx);
   }
 
   if (theme()->debugHighlightMouseover)
@@ -397,6 +392,24 @@ void Widget::draw(NVGcontext *ctx)
 
       nvgRestore(ctx);
     }
+  }
+}
+
+void Widget::drawTabstop(NVGcontext *ctx)
+{
+  Widget* screen = mFocusChain.empty() ? nullptr : (Widget*)mFocusChain.back();
+  if (screen && (this == screen->getCurrentSelection()))
+  {
+    nvgSave(ctx);
+
+    nvgResetScissor(ctx);
+    nvgBeginPath(ctx);
+    nvgStrokeWidth(ctx, 2.0f);
+    nvgRect(ctx, position() - Vector2f(3), size() + Vector2f(6));
+    nvgStrokeColor(ctx, nvgRGBA(0, 0, 255, 255));
+    nvgStroke(ctx);
+
+    nvgRestore(ctx);
   }
 }
 
